@@ -17,6 +17,9 @@ from lumina import (
     portfolio,
     backtest,
     utils,
+    data,
+    risk,
+    attribution,
 )
 
 __all__ = [
@@ -26,4 +29,7 @@ __all__ = [
     "portfolio",
     "backtest",
     "utils",
+    "data",
+    "risk",
+    "attribution",
 ]

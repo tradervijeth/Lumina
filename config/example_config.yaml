@@ -1,0 +1,63 @@
+# Lumina Configuration Example
+#
+# Copyright (c) 2025 Vijeth Ltd. All rights reserved.
+# Author: Vithushan Jeyapahan <finance@vijeth.com>
+
+# Data Configuration
+data:
+  source: "synthetic"  # alpha_vantage, csv, synthetic
+  cache_dir: "data/cache"
+  universe: "TEST"  # SP500, TECH, FINANCE, TEST, or custom file path
+
+# Risk Management
+risk:
+  max_position_size: 0.10  # 10% max per position
+  max_sector_exposure: 0.40  # 40% max per sector
+  max_leverage: 1.0  # No leverage
+  max_drawdown: 0.20  # 20% max drawdown
+
+# Position Sizing
+position_sizing:
+  method: "fixed_fraction"  # fixed_fraction, kelly, volatility_target, risk_based
+  fraction: 0.02  # For fixed_fraction method
+  kelly_fraction: 0.25  # Conservative Kelly
+  target_volatility: 0.15  # For volatility targeting
+
+# Portfolio Optimization
+optimization:
+  method: "mean_variance"  # mean_variance, risk_parity, black_litterman
+  risk_free_rate: 0.02
+  long_only: true
+  max_weight: 0.30
+  min_weight: 0.0
+
+# Black-Litterman (if used)
+black_litterman:
+  risk_aversion: 2.5
+  tau: 0.05
+  views: {}  # Define in code
+  view_confidences: {}
+
+# Backtesting
+backtest:
+  initial_capital: 1000000
+  commission: 0.001  # 10 bps
+  slippage: 0.0005  # 5 bps
+  rebalance_frequency: "W"  # D, W, M, Q
+
+# Strategy Parameters
+strategy:
+  momentum:
+    lookback_period: 20
+    top_n: 5
+
+  mean_reversion:
+    lookback_period: 20
+    entry_threshold: 2.0
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: null  # Set to path for file logging
+  rotation: "100 MB"
+  retention: "30 days"

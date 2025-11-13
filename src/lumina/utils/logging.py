@@ -5,6 +5,8 @@ Copyright (c) 2025 Vijeth Ltd. All rights reserved.
 Author: Vithushan Jeyapahan <finance@vijeth.com>
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 from typing import Optional

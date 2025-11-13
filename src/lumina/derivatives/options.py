@@ -5,8 +5,10 @@ Copyright (c) 2025 Vijeth Ltd. All rights reserved.
 Author: Vithushan Jeyapahan <finance@vijeth.com>
 """
 
+from __future__ import annotations
+
 from datetime import datetime, date
-from typing import Optional, Dict
+from typing import Optional
 
 import numpy as np
 from loguru import logger

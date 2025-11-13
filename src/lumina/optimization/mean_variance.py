@@ -5,7 +5,9 @@ Copyright (c) 2025 Vijeth Ltd. All rights reserved.
 Author: Vithushan Jeyapahan <finance@vijeth.com>
 """
 
-from typing import Optional, Dict, Any
+from __future__ import annotations
+
+from typing import Optional, Any
 
 import cvxpy as cp
 import numpy as np

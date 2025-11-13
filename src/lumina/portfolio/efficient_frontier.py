@@ -5,7 +5,9 @@ Copyright (c) 2025 Vijeth Ltd. All rights reserved.
 Author: Vithushan Jeyapahan <finance@vijeth.com>
 """
 
-from typing import Optional, Tuple
+from __future__ import annotations
+
+from typing import Optional
 import numpy as np
 import pandas as pd
 from loguru import logger

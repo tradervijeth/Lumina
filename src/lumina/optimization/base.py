@@ -5,8 +5,10 @@ Copyright (c) 2025 Vijeth Ltd. All rights reserved.
 Author: Vithushan Jeyapahan <finance@vijeth.com>
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 import numpy as np
 import pandas as pd

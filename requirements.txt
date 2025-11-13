@@ -9,15 +9,16 @@ PyPortfolioOpt>=1.5.5
 
 # Quantitative Finance
 QuantLib>=1.31
-qlib>=0.9.0
 
 # Machine Learning
 scikit-learn>=1.3.0
 torch>=2.0.0
 
-# Data Handling
-yfinance>=0.2.0
-ta-lib>=0.4.0
+# Optional Data Handling
+# Install separately if needed:
+# yfinance>=0.2.0  # Has dependency issues with multitasking
+# qlib>=0.9.0      # Optional for advanced ML features
+# ta-lib>=0.4.0    # Requires TA-Lib C library installation
 
 # Utilities
 loguru>=0.7.0

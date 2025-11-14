@@ -5,11 +5,15 @@
 Developed by Vijeth Ltd
 Author: Vithushan Jeyapahan
 
+**Version 0.3.0** - Production-Ready Release
+
 ---
 
 ## Overview
 
 Lumina is a comprehensive quantitative trading platform that integrates state-of-the-art optimization techniques, machine learning models, derivatives pricing, and portfolio management tools. Built for institutional traders and quantitative researchers, Lumina provides a robust framework for alpha generation, risk management, and systematic trading strategy development.
+
+**Now with production-ready features**: comprehensive transaction cost modeling, advanced risk management with stress testing, database integration, and extensive validation.
 
 ## Key Features
 
@@ -20,13 +24,18 @@ Lumina is a comprehensive quantitative trading platform that integrates state-of
 - **PyPortfolioOpt**: Modern portfolio theory implementations
 
 ### 📊 Core Capabilities
-- **Data Integration**: Multi-source data loading (Alpha Vantage, CSV, synthetic)
+- **Data Integration**: Multi-source data loading with automatic fallback (yfinance, pandas_datareader, Alpha Vantage), caching, and validation
 - **Alpha Generation**: ML-based factor models and signal generation
-- **Portfolio Optimization**: Mean-variance, risk parity, Black-Litterman
-- **Derivatives Pricing**: Options, bonds, and structured products
-- **Backtesting**: Event-driven engine with walk-forward optimization
-- **Risk Management**: Position sizing, VaR, CVaR, risk limits
-- **Performance Attribution**: Factor-based and Brinson attribution
+- **Portfolio Optimization**: Mean-variance, risk parity, Black-Litterman with investor views
+- **Transaction Cost Modeling**: Comprehensive cost modeling (commission, spread, slippage) with multiple broker presets
+- **Order Execution Simulation**: Market, limit, stop, and stop-limit orders with realistic fill simulation
+- **Derivatives Pricing**: Options, bonds, and structured products using QuantLib
+- **Backtesting**: Event-driven engine with transaction costs, walk-forward optimization, and performance analysis
+- **Risk Management**: Position sizing (Kelly, volatility targeting), VaR/ES, risk limits, correlation stress testing
+- **Stress Testing**: Historical scenario replay, hypothetical scenarios, correlation/volatility stress
+- **Performance Attribution**: Factor-based and Brinson-Hood-Beebower attribution
+- **Database Integration**: SQLite/PostgreSQL support for storing market data, backtest results, and trade history
+- **Comprehensive Validation**: Data validation, portfolio validation, covariance matrix checks
 
 ## Architecture
 
@@ -96,6 +105,65 @@ print(f"Sharpe Ratio: {metrics['sharpe_ratio']:.2f}")
 print(f"Annual Return: {metrics['annual_return']:.2%}")
 print(f"Annual Volatility: {metrics['annual_volatility']:.2%}")
 ```
+
+## What's New in v0.3.0
+
+### 🚀 Production-Ready Features
+
+**Transaction Cost Modeling**
+- Comprehensive cost model with commission, bid-ask spread, and market impact
+- Multiple slippage models (fixed, volume-based, square-root, linear impact)
+- Predefined broker models (Interactive Brokers, Schwab, Robinhood, institutional)
+- Cost analysis and attribution by symbol and over time
+
+**Order Execution Simulation**
+- Market, limit, stop, and stop-limit order types
+- Realistic fill simulation with partial fills and price improvement
+- Volume-based fill probability
+
+**Enhanced Risk Management**
+- Correlation stress testing (analyze portfolio sensitivity to correlation shocks)
+- Scenario analysis (market crash, rate shock, inflation, credit crisis, etc.)
+- Historical scenario replay (e.g., 2008 financial crisis)
+- Scenario generator to find worst historical periods
+
+**Data Pipeline Improvements**
+- Automatic source fallback (yfinance → pandas_datareader → Alpha Vantage)
+- Exponential backoff retry logic for network failures
+- Two-layer caching (memory + disk) with TTL
+- Rate limiting for API calls
+- Comprehensive data validation (OHLC consistency, outliers, missing values)
+
+**Comprehensive Validation**
+- Returns validation (minimum periods, missing data, outliers)
+- Price data validation (negative prices, zero prices)
+- Portfolio weights validation (bounds checking, sum to one)
+- Covariance matrix validation (symmetry, positive semi-definite, condition number)
+
+**Database Integration**
+- SQLite and PostgreSQL support
+- Store market data, backtest results, trade history, portfolio snapshots
+- Query historical runs and compare strategies
+- Automated table creation and schema management
+
+**Performance Optimizations**
+- Vectorized operations throughout codebase
+- Efficient caching mechanisms
+- Optimized VaR calculations
+
+### 📦 New Modules
+
+- `lumina.backtest.costs` - Transaction cost modeling
+- `lumina.backtest.execution` - Order execution simulation
+- `lumina.risk.stress_testing` - Stress testing and scenario analysis
+- `lumina.utils.validators` - Comprehensive data validation
+- `lumina.utils.database` - Database integration
+
+### 🔧 Enhanced Modules
+
+- `lumina.data.loader` - Improved with fallback, caching, and validation
+- `lumina.backtest.engine` - Now uses comprehensive cost model
+- `lumina.risk.*` - Added stress testing capabilities
 
 ## Core Modules
 

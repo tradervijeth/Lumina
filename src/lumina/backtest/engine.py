@@ -1,5 +1,5 @@
 """
-Backtesting engine.
+Backtesting engine with comprehensive transaction cost modeling.
 
 Copyright (c) 2025 Vijeth Ltd. All rights reserved.
 Author: Vithushan Jeyapahan <finance@vijeth.com>
@@ -7,7 +7,7 @@ Author: Vithushan Jeyapahan <finance@vijeth.com>
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 
 import numpy as np
@@ -15,22 +15,35 @@ import pandas as pd
 from loguru import logger
 
 from lumina.backtest.strategy import Strategy
+from lumina.backtest.costs import TransactionCostModel, RealizedCosts, BROKER_MODELS
 
 
 class BacktestEngine:
     """
-    Event-driven backtesting engine.
+    Event-driven backtesting engine with realistic transaction costs.
 
-    Simulates strategy execution with realistic transaction costs,
-    slippage, and portfolio constraints.
+    Features:
+    - Comprehensive transaction cost modeling
+    - Multiple slippage models
+    - Realistic order execution
+    - Detailed cost tracking and analysis
+
+    Example:
+        >>> from lumina.backtest.costs import BROKER_MODELS
+        >>> engine = BacktestEngine(
+        ...     strategy=my_strategy,
+        ...     data=price_data,
+        ...     cost_model=BROKER_MODELS['interactive_brokers'],
+        ... )
     """
 
     def __init__(
         self,
         strategy: Strategy,
         data: pd.DataFrame,
-        commission: float = 0.001,
-        slippage: float = 0.0005,
+        cost_model: Optional[Union[TransactionCostModel, str]] = None,
+        volume_data: Optional[pd.DataFrame] = None,
+        volatility_data: Optional[pd.DataFrame] = None,
     ):
         """
         Initialize backtest engine.
@@ -38,19 +51,36 @@ class BacktestEngine:
         Args:
             strategy: Strategy instance to backtest
             data: Historical price data (DataFrame with DatetimeIndex)
-            commission: Commission rate (fraction)
-            slippage: Slippage rate (fraction)
+            cost_model: TransactionCostModel or broker name ('interactive_brokers', etc.)
+                       If None, uses default model
+            volume_data: Historical volume data (for slippage models)
+            volatility_data: Historical volatility data (for impact models)
 
         Example:
-            >>> engine = BacktestEngine(strategy, price_data)
+            >>> engine = BacktestEngine(strategy, price_data, cost_model='interactive_brokers')
         """
         self.strategy = strategy
         self.data = data
-        self.commission = commission
-        self.slippage = slippage
+        self.volume_data = volume_data
+        self.volatility_data = volatility_data
+
+        # Setup cost model
+        if cost_model is None:
+            self.cost_model = TransactionCostModel()
+        elif isinstance(cost_model, str):
+            if cost_model in BROKER_MODELS:
+                self.cost_model = BROKER_MODELS[cost_model]
+            else:
+                raise ValueError(
+                    f"Unknown broker model: {cost_model}. "
+                    f"Available: {list(BROKER_MODELS.keys())}"
+                )
+        else:
+            self.cost_model = cost_model
 
         self.results = None
         self.trades = []
+        self.realized_costs = RealizedCosts()
 
         logger.info(
             f"Initialized BacktestEngine for strategy '{strategy.name}' "
@@ -176,14 +206,14 @@ class BacktestEngine:
 
     def _rebalance(
         self,
-        current_positions: Dict[str, float],
+        current_positions: dict[str, float],
         target_weights: pd.Series,
         current_prices: pd.Series,
         portfolio_value: float,
         date: datetime,
-    ) -> Dict:
+    ) -> dict:
         """
-        Execute portfolio rebalancing.
+        Execute portfolio rebalancing with realistic transaction costs.
 
         Args:
             current_positions: Current positions (asset -> quantity)
@@ -197,6 +227,7 @@ class BacktestEngine:
         """
         new_positions = {}
         total_costs = 0
+        cost_breakdown = {'commission': 0, 'spread': 0, 'slippage': 0}
 
         # Calculate target position sizes
         for asset in target_weights.index:
@@ -206,30 +237,67 @@ class BacktestEngine:
             if current_price <= 0:
                 continue
 
-            # Apply slippage
-            execution_price = current_price * (1 + self.slippage)
-
-            target_quantity = target_value / execution_price
+            # Calculate target quantity
+            target_quantity = target_value / current_price
 
             # Calculate trade
             current_quantity = current_positions.get(asset, 0)
             trade_quantity = target_quantity - current_quantity
 
-            if abs(trade_quantity) > 0:
-                trade_value = abs(trade_quantity) * execution_price
-                cost = trade_value * self.commission
+            if abs(trade_quantity) > 1e-8:  # Minimum trade size
+                # Determine side
+                side = 'buy' if trade_quantity > 0 else 'sell'
 
-                total_costs += cost
+                # Get volume and volatility if available
+                volume = None
+                if self.volume_data is not None and asset in self.volume_data.columns:
+                    try:
+                        volume = self.volume_data.loc[date, asset]
+                    except (KeyError, IndexError):
+                        pass
+
+                volatility = None
+                if self.volatility_data is not None and asset in self.volatility_data.columns:
+                    try:
+                        volatility = self.volatility_data.loc[date, asset]
+                    except (KeyError, IndexError):
+                        pass
+
+                # Calculate comprehensive transaction costs
+                costs = self.cost_model.calculate_total_cost(
+                    price=current_price,
+                    shares=abs(trade_quantity),
+                    side=side,
+                    volume=volume,
+                    volatility=volatility,
+                )
+
+                total_costs += costs['total']
+                cost_breakdown['commission'] += costs['commission']
+                cost_breakdown['spread'] += costs['spread']
+                cost_breakdown['slippage'] += costs['slippage']
 
                 # Record trade
-                self.trades.append({
+                trade_record = {
                     'date': date,
                     'asset': asset,
                     'quantity': trade_quantity,
-                    'price': execution_price,
-                    'value': trade_quantity * execution_price,
-                    'cost': cost,
-                })
+                    'price': current_price,
+                    'side': side,
+                    'value': trade_quantity * current_price,
+                    **costs,
+                }
+                self.trades.append(trade_record)
+
+                # Record in realized costs tracker
+                self.realized_costs.add_trade(
+                    timestamp=date,
+                    symbol=asset,
+                    price=current_price,
+                    shares=trade_quantity,
+                    side=side,
+                    costs=costs,
+                )
 
             new_positions[asset] = target_quantity
 
@@ -240,6 +308,7 @@ class BacktestEngine:
             'new_positions': new_positions,
             'new_cash': new_cash,
             'total_costs': total_costs,
+            'cost_breakdown': cost_breakdown,
         }
 
     def get_trades(self) -> pd.DataFrame:
@@ -271,3 +340,79 @@ class BacktestEngine:
             >>> results = engine.get_results()
         """
         return self.results
+
+    def get_cost_analysis(self) -> dict:
+        """
+        Get comprehensive cost analysis.
+
+        Returns:
+            Dictionary with cost statistics and breakdowns
+
+        Example:
+            >>> cost_analysis = engine.get_cost_analysis()
+            >>> print(f"Total costs: ${cost_analysis['summary']['total_costs']:.2f}")
+            >>> print(f"Average cost: {cost_analysis['summary']['avg_bps']:.1f} bps")
+        """
+        summary = self.realized_costs.get_summary()
+        by_symbol = self.realized_costs.get_costs_by_symbol()
+        over_time = self.realized_costs.get_costs_over_time(freq='D')
+
+        return {
+            'summary': summary,
+            'by_symbol': by_symbol,
+            'over_time': over_time,
+        }
+
+    def get_performance_after_costs(self) -> dict:
+        """
+        Get performance metrics adjusted for transaction costs.
+
+        Returns:
+            Dictionary with gross and net performance metrics
+
+        Example:
+            >>> perf = engine.get_performance_after_costs()
+            >>> print(f"Gross return: {perf['gross_return']:.2%}")
+            >>> print(f"Net return: {perf['net_return']:.2%}")
+            >>> print(f"Cost drag: {perf['cost_drag']:.2%}")
+        """
+        if self.results is None:
+            raise ValueError("Backtest not run yet")
+
+        # Calculate gross returns (without costs)
+        trades_df = self.get_trades()
+        if trades_df.empty:
+            return {
+                'gross_return': 0.0,
+                'net_return': 0.0,
+                'cost_drag': 0.0,
+                'turnover': 0.0,
+            }
+
+        gross_returns = self.results['returns'].copy()
+        total_cost = trades_df['total'].sum()
+
+        initial_value = self.results['portfolio_value'].iloc[0]
+        final_value = self.results['portfolio_value'].iloc[-1]
+
+        gross_return = (final_value / initial_value) - 1
+
+        # Estimate net return by adding back costs
+        final_value_with_costs = final_value + total_cost
+        net_return = (final_value_with_costs / initial_value) - 1
+
+        cost_drag = net_return - gross_return
+
+        # Calculate turnover
+        total_volume = trades_df['value'].abs().sum()
+        avg_portfolio_value = self.results['portfolio_value'].mean()
+        turnover = total_volume / (avg_portfolio_value * len(self.results) / 252)  # Annualized
+
+        return {
+            'gross_return': gross_return,
+            'net_return': net_return,
+            'cost_drag': cost_drag,
+            'total_costs': total_cost,
+            'turnover': turnover,
+            'costs_bps': (total_cost / total_volume * 10000) if total_volume > 0 else 0,
+        }
